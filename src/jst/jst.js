@@ -10,7 +10,6 @@ var JSTerrain = {
             this.excluded = false;
             this.minHeight = 0;
             this.maxHeight = 0;
-            this.indexBuffer = null;
         }
         
         // Fill chunk tree
