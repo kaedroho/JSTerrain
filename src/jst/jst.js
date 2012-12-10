@@ -1,10 +1,9 @@
 var JSTerrain = {
-    Region: function(glContext, heightArray, readOnly) {
-        this.glContext = glContext;
+    Region: function(gl, heightArray, readOnly) {
+        this.gl = gl;
         this.heightArray = heightArray;
         this.readOnly = readOnly;
         this.dirty = false;
-        this.vertexBuffer = null;
         
         function ChunkTreeData() {
             this.excluded = false;
@@ -18,6 +17,65 @@ var JSTerrain = {
         for (var chunk = 0; chunk < chunkCount; chunk++) {
             this.chunkTree[chunk] = new ChunkTreeData();
         }
+        
+        // Create WebGL vertex buffers
+        this.vertexBuffers = [this.gl.createBuffer(), this.gl.createBuffer()];
+        
+        // Create data for top vertex buffer
+        var tempVertexArray = new Float32Array(3 * 257 * 129);
+        for (var vertexX = 0; vertexX < 256; vertexX++) {
+            for (var vertexY = 0; vertexY < 129; vertexY++) {
+                var vertex = vertexY * 257 + vertexX;
+                tempVertexArray[vertex * 3 + 0] = vertexX;
+                tempVertexArray[vertex * 3 + 1] = vertexY;
+                tempVertexArray[vertex * 3 + 2] = this.heightArray[vertex];
+            }
+        }
+        
+        // Make up some data for the east edge on top vertex buffer
+        for (var vertexY = 0; vertexY < 129; vertexY++) {
+            var vertex = vertexY * 257 + 256;
+            tempVertexArray[vertex * 3 + 0] = 256;
+            tempVertexArray[vertex * 3 + 1] = vertexY;
+            var previousDiff = this.heightArray[vertex - 1] - this.heightArray[vertex - 2];
+            tempVertexArray[vertex * 3 + 2] = this.heightArray[vertex - 1] + previousDiff;
+        }
+        
+        // Load data into WebGL
+        this.gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffers[0]);
+        gl.bufferData(gl.ARRAY_BUFFER, tempVertexArray, gl.STATIC_DRAW);
+        
+        // Create data for bottom vertex buffer
+        for (var vertexX = 0; vertexX < 256; vertexX++) {
+            for (var vertexY = 129; vertexY < 256; vertexY++) {
+                var vertex = vertexY * 257 + vertexX;
+                tempVertexArray[(vertex - 33153) * 3 + 0] = vertexX;
+                tempVertexArray[(vertex - 33153) * 3 + 1 - 33153] = vertexY;
+                tempVertexArray[(vertex - 33153) * 3 + 2 - 33153] = this.heightArray[vertex];
+            }
+        }
+        
+        // Make up some data for the east edge on bottom vertex buffer
+        for (var vertexY = 129; vertexY < 256; vertexY++) {
+            var vertex = vertexY * 257 + 256;
+            tempVertexArray[(vertex - 33153) * 3 + 0] = 256;
+            tempVertexArray[(vertex - 33153) * 3 + 1] = vertexY;
+            var previousDiff = this.heightArray[vertex - 1] - this.heightArray[vertex - 2];
+            tempVertexArray[(vertex - 33153) * 3 + 2] = this.heightArray[vertex - 1] + previousDiff;
+        }
+        
+        // Make up some data for the south edge
+        for (var vertexX = 0; vertexX < 257; vertexX++) {
+            var vertex = 257 * 256 + vertexX;
+            tempVertexArray[(vertex - 33153) * 3 + 0] = vertexX;
+            tempVertexArray[(vertex - 33153) * 3 + 1] = 256;
+            var previousDiff = this.heightArray[vertex - 257] - this.heightArray[vertex - (257 * 2)];
+            tempVertexArray[(vertex - 33153) * 3 + 2] = this.heightArray[vertex - 257] + previousDiff;
+        }
+        
+        // Load data into WebGL
+        this.gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffers[1]);
+        gl.bufferData(gl.ARRAY_BUFFER, tempVertexArray, gl.STATIC_DRAW);
     },
     
     RenderStruct: function() {
