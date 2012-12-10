@@ -5,6 +5,7 @@ var JSTerrain = {
         this.readOnly = readOnly;
         this.dirty = false;
         
+        // Chunk tree data structure
         function ChunkTreeData() {
             this.excluded = false;
             this.minHeight = 0;
@@ -12,6 +13,7 @@ var JSTerrain = {
             this.indexBuffer = null;
         }
         
+        // Fill chunk tree
         var chunkCount = 256 + 64 + 16 + 4 + 1;
         this.chunkTree = new Array(chunkCount);
         for (var chunk = 0; chunk < chunkCount; chunk++) {
