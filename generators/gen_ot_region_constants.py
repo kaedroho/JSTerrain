@@ -23,7 +23,6 @@ class Chunk():
             self.vb = 1
         if quad == 3 or quad == 4:
             self.vb = 2
-        #self.start_index = level * 16 * 16 * 6
         self.start_index = 0
         self.border_edge_n = border_edge_n
         self.border_edge_e = border_edge_e
@@ -97,9 +96,6 @@ for chunk in chunklist:
     start_index = start_index + 16 * 16 * 6
     print "".join(["\t", chunk.to_string()])
     
-#for chunk in chunklist:
-#    print "".join(["\t", chunk.to_string()])
-    
 print "];"
 print ""
 print ""
@@ -125,12 +121,7 @@ for chunk in chunklist:
                 b = a + quadsize
                 c = a + 257 * quadsize
                 d = c + quadsize
-                
-#                a = chunk.miny * 257 + chunk.minx
-#                b = a + chunk.size
-#                c = a + 257 * chunk.size
-#                d = c + chunk.size
-                
+
                 print str(a) + ",",
                 print str(b) + ",",
                 print str(c) + ",",

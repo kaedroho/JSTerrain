@@ -29,8 +29,8 @@ function draw() {
         
         var currentVB = -1;
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        //mat4.perspective(90, 1024 / 768, 0.1, 1000.0, pMatrix);
-        mat4.ortho(0, 1024, 768, 0, 1, 1000, pMatrix);
+        mat4.perspective(90, 1024 / 768, 0.1, 1000.0, pMatrix);
+        //mat4.ortho(0, 1024, 768, 0, 1, 1000, pMatrix);
         gl.uniformMatrix4fv(shaderProgram.pUniform, false, pMatrix);
         
         // Bind indices
@@ -53,12 +53,14 @@ function draw() {
             }
             
             mat4.identity(mvMatrix);
-            mat4.scale(mvMatrix, [3.0, 3.0, 1.0]);
-            mat4.translate(mvMatrix, [0, 0, -10]);
+            mat4.scale(mvMatrix, [1.0, -1.0, 1]);
+            mat4.rotateX(mvMatrix, 0.8, mvMatrix);
+            mat4.translate(mvMatrix, [-100, -200, -100]);
+            mat4.scale(mvMatrix, [1.0, 1.0, 0.001]);
             gl.uniformMatrix4fv(shaderProgram.mvUniform, false, mvMatrix);
             
             // Draw chunk
-            gl.drawElements(gl.LINE_STRIP, 1536, gl.UNSIGNED_SHORT, startIndex * 2);
+            gl.drawElements(gl.LINES, 1536, gl.UNSIGNED_SHORT, startIndex * 2);
         }
     }
 }
@@ -71,7 +73,42 @@ function start() {
     canvas.addEventListener("mousemove", mouseMoveHandler, false);
     
     JSTerrain.init(gl);
-    region = new JSTerrain.Region(new Uint16Array(257 * 257), true);
+    
+    var heights = new Uint16Array(257 * 257)
+    
+    for (var x = 0; x < 257; x++) {
+        for (var y = 0; y < 257; y++) {
+            heights[y * 257 + x] = Math.random() * 60000;
+        }
+    }
+    
+    for (var i = 0; i < 15; i++) {
+        for (var x = 0; x < 257; x++) {
+            for (var y = 0; y < 257; y++) {
+                var parts = 4;
+                var value = heights[y * 257 + x] * 4
+                if (x > 0) {
+                    parts++;
+                    value += heights[y * 257 + (x - 1)];
+                }
+                if (y > 0) {
+                    parts++;
+                    value += heights[(y - 1) * 257 + x];
+                }
+                if (x < 256) {
+                    parts++;
+                    value += heights[y * 257 + (x + 1)];
+                }
+                if (y < 256) {
+                    parts++;
+                    value += heights[(y + 1) * 257 + x];
+                }
+                heights[y * 257 + x] = value / parts;
+            }
+        }
+    }
+    
+    region = new JSTerrain.Region(heights, true);
     
     setInterval(draw, 30);
 }
