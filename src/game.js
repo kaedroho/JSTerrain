@@ -16,26 +16,40 @@ function mouseMoveHandler(event) {
 }
 
 function draw() {
+    // Only re render if the mouse has moved
     if (mouse.changed) {
         mouse.changed = false;
         
+        // Set render variables
         var renderVariables = new JSTerrain.RenderVariables();
         renderVariables.region = region;
         renderVariables.LODDistances = [32, 128, 256, 512, 1024];
         renderVariables.morphEnabled = true;
         renderVariables.eyePosition = {x: mouse.x / 3, y: mouse.y / 3, z: 0}
         
+        // Render the region
         JSTerrain.renderRegion(renderVariables);
         
-        var currentVB = -1;
+        // Clear backbuffer
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        
+        // Projection matrix
         mat4.perspective(90, 1024 / 768, 0.1, 1000.0, pMatrix);
-        //mat4.ortho(0, 1024, 768, 0, 1, 1000, pMatrix);
         gl.uniformMatrix4fv(shaderProgram.pUniform, false, pMatrix);
+        
+        // Model view matrix
+        mat4.identity(mvMatrix);
+        mat4.scale(mvMatrix, [1.0, -1.0, 1]);
+        mat4.rotateX(mvMatrix, 0.8, mvMatrix);
+        mat4.translate(mvMatrix, [-100, -200, -100]);
+        mat4.scale(mvMatrix, [1.0, 1.0, 0.001]);
+        gl.uniformMatrix4fv(shaderProgram.mvUniform, false, mvMatrix);
         
         // Bind indices
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, JSTerrain.indexBuffer);
         
+        // Draw render stack
+        var currentVB = -1;
         for (var renderStruct = renderVariables.renderStackSize - 1; renderStruct >= 0; renderStruct--) {
             var chunkID = renderVariables.renderStack[renderStruct].chunkID;
             var startIndex = JSTerrain.chunkConstants[chunkID].startIndex;
@@ -52,13 +66,6 @@ function draw() {
                 currentVB = vb;
             }
             
-            mat4.identity(mvMatrix);
-            mat4.scale(mvMatrix, [1.0, -1.0, 1]);
-            mat4.rotateX(mvMatrix, 0.8, mvMatrix);
-            mat4.translate(mvMatrix, [-100, -200, -100]);
-            mat4.scale(mvMatrix, [1.0, 1.0, 0.001]);
-            gl.uniformMatrix4fv(shaderProgram.mvUniform, false, mvMatrix);
-            
             // Draw chunk
             gl.drawElements(gl.LINES, 1536, gl.UNSIGNED_SHORT, startIndex * 2);
         }
@@ -66,22 +73,26 @@ function draw() {
 }
 
 function start() {
+    // Setup
     canvas = document.getElementById("game");
     initGL(canvas);
     shaderProgram = initShaders();
-    
     canvas.addEventListener("mousemove", mouseMoveHandler, false);
     
+    // Init JSTerrain
     JSTerrain.init(gl);
     
+    // Create heights array
     var heights = new Uint16Array(257 * 257)
     
+    // Fill heights array with random data
     for (var x = 0; x < 257; x++) {
         for (var y = 0; y < 257; y++) {
             heights[y * 257 + x] = Math.random() * 60000;
         }
     }
     
+    // Smooth the data
     for (var i = 0; i < 15; i++) {
         for (var x = 0; x < 257; x++) {
             for (var y = 0; y < 257; y++) {
@@ -108,8 +119,10 @@ function start() {
         }
     }
     
+    // Create region
     region = new JSTerrain.Region(heights, true);
     
+    // Start main loop
     setInterval(draw, 30);
 }
 
