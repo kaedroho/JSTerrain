@@ -18,6 +18,13 @@ class Chunk():
         self.maxx = self.minx + self.size
         self.maxy = self.miny + self.size
         self.quad = quad
+        self.vb = 0
+        if quad == 1 or quad == 2:
+            self.vb = 1
+        if quad == 3 or quad == 4:
+            self.vb = 2
+        #self.start_index = level * 16 * 16 * 6
+        self.start_index = 0
         self.border_edge_n = border_edge_n
         self.border_edge_e = border_edge_e
         self.border_edge_s = border_edge_s
@@ -52,7 +59,7 @@ class Chunk():
         return str(number)
         
     def to_string(self):
-        return "".join(["{level: ", str(self.level), ", size: ", str(self.size), ", position: {x: ", str(self.x), ", y: ", str(self.y), "}, min: {x: ", str(self.minx), ", y: ", str(self.miny), "}, max: {x: ", str(self.maxx), ", y: ", str(self.maxy), "}, centre: {x: ", str(self.minx + self.size / 2), ", y: ", str(self.miny + self.size / 2), "}, quad: " + str(self.quad) + ", borderEdges: ", self.get_border_edge_string(), ", variableLodEdges: ", self.get_variable_lod_edge_string(), "},"])
+        return "".join(["{level: ", str(self.level), ", size: ", str(self.size), ", position: {x: ", str(self.x), ", y: ", str(self.y), "}, min: {x: ", str(self.minx), ", y: ", str(self.miny), "}, max: {x: ", str(self.maxx), ", y: ", str(self.maxy), "}, centre: {x: ", str(self.minx + self.size / 2), ", y: ", str(self.miny + self.size / 2), "}, quad: " + str(self.quad) + ", vb: " + str(self.vb) + ", startIndex: " + str(self.start_index) + ", borderEdges: ", self.get_border_edge_string(), ", variableLodEdges: ", self.get_variable_lod_edge_string(), "},"])
         
 chunklist = []
 
@@ -84,8 +91,14 @@ def recurse(chunk_id, level, size, x, y, quad, corner, border_n, border_e, borde
         
 recurse(0, 4, 256, 0, 0, 0, -1, True, True, True, True)
 
+start_index = 0
 for chunk in chunklist:
+    chunk.start_index = start_index
+    start_index = start_index + 16 * 16 * 6
     print "".join(["\t", chunk.to_string()])
+    
+#for chunk in chunklist:
+#    print "".join(["\t", chunk.to_string()])
     
 print "];"
 print ""
@@ -93,21 +106,36 @@ print ""
 print "JSTerrain.LODSize = [16, 32, 64, 128, 256];"
 print ""
 print ""
-print "JSTerrain.indices = ["
-for i in range(0, 4):
-    print "new Uint16Array([",
+print "JSTerrain.indices = new Uint16Array([",
+current_index = 0
+for chunk in chunklist:
     for x in range(0, 16):
-        for y in range(0,16):
-            quadsize = int(math.pow(2, i))
-            a = (y * 257 * quadsize) + x * quadsize
-            b = a + quadsize
-            c = a + 257 * quadsize
-            d = c + quadsize
-            print str(a) + ",",
-            print str(b) + ",",
-            print str(c) + ",",
-            print str(c) + ",",
-            print str(b) + ",",
-            print str(d) + ",",
-    print "]),"
-print "];"
+        for y in range(0, 16):
+            if chunk.level == 4:
+                print "0, 0, 0, 0, 0, 0,",
+            else:
+                quadsize = chunk.size / 16
+                px = x * quadsize + chunk.minx
+                py = y * quadsize + chunk.miny
+                
+                if chunk.vb == 2:
+                    py = py - 128
+                    
+                a = (py * 257) + px
+                b = a + quadsize
+                c = a + 257 * quadsize
+                d = c + quadsize
+                
+#                a = chunk.miny * 257 + chunk.minx
+#                b = a + chunk.size
+#                c = a + 257 * chunk.size
+#                d = c + chunk.size
+                
+                print str(a) + ",",
+                print str(b) + ",",
+                print str(c) + ",",
+                print str(c) + ",",
+                print str(b) + ",",
+                print str(d) + ",",
+            current_index = current_index + 6
+print "]);"

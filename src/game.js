@@ -4,7 +4,6 @@ var gl;
 var shaderProgram;
 var mvMatrix = mat4.create();
 var pMatrix = mat4.create();
-var indicesBuffer;
 
 var mouse = {x: 0, y: 0, changed: true};
 
@@ -24,46 +23,42 @@ function draw() {
         renderVariables.region = region;
         renderVariables.LODDistances = [32, 128, 256, 512, 1024];
         renderVariables.morphEnabled = true;
-        renderVariables.eyePosition = {x: mouse.x, y: mouse.y, z: 0}
+        renderVariables.eyePosition = {x: mouse.x / 3, y: mouse.y / 3, z: 0}
         
         JSTerrain.renderRegion(renderVariables);
         
         var currentVB = -1;
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        mat4.perspective(90, 1024 / 768, 0.1, 1000.0, pMatrix);
+        //mat4.perspective(90, 1024 / 768, 0.1, 1000.0, pMatrix);
+        mat4.ortho(0, 1024, 768, 0, 1, 1000, pMatrix);
         gl.uniformMatrix4fv(shaderProgram.pUniform, false, pMatrix);
+        
+        // Bind indices
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, JSTerrain.indexBuffer);
+        
         for (var renderStruct = renderVariables.renderStackSize - 1; renderStruct >= 0; renderStruct--) {
             var chunkID = renderVariables.renderStack[renderStruct].chunkID;
-            var pos = JSTerrain.chunkConstants[chunkID].min;
-            var size = JSTerrain.chunkConstants[chunkID].size;
-            var quad = JSTerrain.chunkConstants[chunkID].quad;
+            var startIndex = JSTerrain.chunkConstants[chunkID].startIndex;
+            var vb = JSTerrain.chunkConstants[chunkID].vb;
             
             // Load vertex buffer
-            if (quad == 1 || quad == 2) {
-                if (currentVB != 0) {
-                    // Load vertex buffer 0
-                    gl.bindBuffer(gl.ARRAY_BUFFER, region.vertexBuffers[0]);
-                    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
-                    currentVB = 0;
+            if (vb != currentVB) {
+                if (vb == 0) {
+                    continue;
                 }
-            } else if (quad == 3 || quad == 4) {
-                if (currentVB != 1) {
-                    // Load vertex buffer 1
-                    gl.bindBuffer(gl.ARRAY_BUFFER, region.vertexBuffers[1]);
-                    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
-                    currentVB = 1;
-                }
-            } else {
-                continue;
+                // Load vertex buffer
+                gl.bindBuffer(gl.ARRAY_BUFFER, region.vertexBuffers[vb - 1]);
+                gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+                currentVB = vb;
             }
             
             mat4.identity(mvMatrix);
-            mat4.translate(mvMatrix, [pos.x, pos.y, -700.0]);
-            
+            mat4.scale(mvMatrix, [3.0, 3.0, 1.0]);
+            mat4.translate(mvMatrix, [0, 0, -10]);
             gl.uniformMatrix4fv(shaderProgram.mvUniform, false, mvMatrix);
             
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer);
-            gl.drawElements(gl.TRIANGLES, 1536, gl.UNSIGNED_SHORT, 0);
+            // Draw chunk
+            gl.drawElements(gl.LINE_STRIP, 1536, gl.UNSIGNED_SHORT, startIndex * 2);
         }
     }
 }
@@ -75,7 +70,8 @@ function start() {
     
     canvas.addEventListener("mousemove", mouseMoveHandler, false);
     
-    region = new JSTerrain.Region(gl, new Uint16Array(256 * 256), true);
+    JSTerrain.init(gl);
+    region = new JSTerrain.Region(new Uint16Array(257 * 257), true);
     
     setInterval(draw, 30);
 }
@@ -90,7 +86,7 @@ function initGL(canvas) {
         
         indicesBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, JSTerrain.indices[0], gl.STATIC_DRAW);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, JSTerrain.indices, gl.STATIC_DRAW);
     } catch(e) {
     }
     if (!gl) {
