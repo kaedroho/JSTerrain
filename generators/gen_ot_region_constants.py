@@ -99,9 +99,9 @@ for i in range(0, 4):
     for x in range(0, 16):
         for y in range(0,16):
             quadsize = int(math.pow(2, i))
-            a = (y * 128 * quadsize) + x * quadsize
+            a = (y * 257 * quadsize) + x * quadsize
             b = a + quadsize
-            c = a + 128 * quadsize
+            c = a + 257 * quadsize
             d = c + quadsize
             print str(a) + ",",
             print str(b) + ",",
