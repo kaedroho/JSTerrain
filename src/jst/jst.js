@@ -38,15 +38,14 @@ var JSTerrain = {
         var gl = JSTerrain.glContext;
         this.vertexBuffers = [gl.createBuffer(), gl.createBuffer()];
         
-        var tempVertexArray = new Float32Array(3 * 257 * 129);
+        var tempVertexArray = new Float32Array(2 * 257 * 129);
         for (var vb = 0; vb < 2; vb++) {
             // Create data
             for (var vertexX = 0; vertexX < 257; vertexX++) {
                 for (var vertexY = 0; vertexY < 129; vertexY++) {
                     var vertex = vertexY * 257 + vertexX;
-                    tempVertexArray[vertex * 3 + 0] = vertexX;
-                    tempVertexArray[vertex * 3 + 1] = vertexY + 128 * vb;
-                    tempVertexArray[vertex * 3 + 2] = this.heightArray[vertex + 32896 * vb];
+                    tempVertexArray[vertex * 2 + 0] = (vertexY + 128 * vb) * 257 + vertexX;
+                    tempVertexArray[vertex * 2 + 1] = this.heightArray[vertex + 32896 * vb];
                 }
             }
             
@@ -63,6 +62,7 @@ var JSTerrain = {
     RenderStruct: function() {
         this.chunkID = 0;
         this.morph = 0;
+        this.edgeMorph = {n: 0, e: 0, s: 0, w: 0};
     },
     
     RenderVariables: function() {
@@ -118,14 +118,40 @@ var JSTerrain = {
     renderRegion: function(renderVariables) {
         function renderRecurse(renderVariables, level, chunkID) {
             function drawChunk(renderVariables, chunkID, morph) {
+                // Add to render stack
                 if (renderVariables.renderStackSize < 256) {
                     renderVariables.renderStack[renderVariables.renderStackSize].chunkID = chunkID;
                     renderVariables.renderStack[renderVariables.renderStackSize].morph = morph;
                     renderVariables.renderStackSize++;
+                    
+                    // Edge morph
+                    var variableLodEdges = JSTerrain.chunkConstants[chunkID].variableLodEdges;
+                    var borderEdges = JSTerrain.chunkConstants[chunkID].variableLodEdges;
+                    if ((variableLodEdges & 0x1) && !(borderEdges & 0x1)) { // NORTH
+                        
+                    } else {
+                        renderVariables.renderStack[renderVariables.renderStackSize].edgeMorph.n = 0;
+                    }
+                    if ((variableLodEdges & 0x2) && !(borderEdges & 0x2)) { // EAST
+                        
+                    } else {
+                        renderVariables.renderStack[renderVariables.renderStackSize].edgeMorph.e = 0;
+                    }
+                    if ((variableLodEdges & 0x4) && !(borderEdges & 0x4)) { // SOUTH
+                        
+                    } else {
+                        renderVariables.renderStack[renderVariables.renderStackSize].edgeMorph.s = 0;
+                    }
+                    if ((variableLodEdges & 0x5) && !(borderEdges & 0x8)) { // WEST
+                        
+                    } else {
+                        renderVariables.renderStack[renderVariables.renderStackSize].edgeMorph.w = 0;
+                    }
                 }
             }
             
             function renderQuadrant(renderVariables, level, chunkID) {
+                // Check if excluded
                 if (renderVariables.region && renderVariables.region.chunkTree[chunkID].excluded == true) {
                     return;
                 }

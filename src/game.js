@@ -60,9 +60,10 @@ function draw() {
                 if (vb == 0) {
                     continue;
                 }
+                
                 // Load vertex buffer
                 gl.bindBuffer(gl.ARRAY_BUFFER, region.vertexBuffers[vb - 1]);
-                gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+                gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, 0, 0);
                 currentVB = vb;
             }
             
@@ -146,7 +147,9 @@ function initGL(canvas) {
 
 function initShaders() {
     // Vertex shader
-    vert_src = "attribute vec3 pos;\n\nuniform mat4 matp;\nuniform mat4 matmv;\n\nvoid main(void) {\ngl_Position = matp * matmv * vec4(pos.x, pos.y, pos.z, 1.0);\n}";
+    vert_src = "attribute vec2 pos;\n\nuniform mat4 matp;\nuniform mat4 matmv;\n\nvoid main(void) {\ngl_Position = matp * matmv * vec4(mod(pos.x, 257.0), floor(pos.x / 257.0), pos.y, 1.0);\n}";
+    
+    
     var vert = gl.createShader(gl.VERTEX_SHADER);
     gl.shaderSource(vert, vert_src);
     gl.compileShader(vert);

@@ -57,8 +57,34 @@ class Chunk():
             number = number + 8
         return str(number)
         
+    def get_index_count(self):
+        return 16 * 16 * 6
+        
+    def get_indices(self):
+        indices = ""
+        for x in range(0, 16):
+            for y in range(0, 16):
+                if self.level == 4:
+                    indices = "".join([indices, "0,0,0,0,0,0,"])
+                else:
+                    quadsize = self.size / 16
+                    px = x * quadsize + self.minx
+                    py = y * quadsize + self.miny
+                    
+                    if self.vb == 2:
+                        py = py - 128
+                        
+                    a = (py * 257) + px
+                    b = a + quadsize
+                    c = a + 257 * quadsize
+                    d = c + quadsize
+                    
+                    indices = "".join([indices, str(a), ",", str(b), ",", str(c), ",", str(c), ",", str(b), ",", str(d), ","])
+        return indices
+        
     def to_string(self):
-        return "".join(["{level: ", str(self.level), ", size: ", str(self.size), ", position: {x: ", str(self.x), ", y: ", str(self.y), "}, min: {x: ", str(self.minx), ", y: ", str(self.miny), "}, max: {x: ", str(self.maxx), ", y: ", str(self.maxy), "}, centre: {x: ", str(self.minx + self.size / 2), ", y: ", str(self.miny + self.size / 2), "}, quad: " + str(self.quad) + ", vb: " + str(self.vb) + ", startIndex: " + str(self.start_index) + ", borderEdges: ", self.get_border_edge_string(), ", variableLodEdges: ", self.get_variable_lod_edge_string(), "},"])
+        return "".join(["{level:", str(self.level), ",size:", str(self.size), ",position:{x:", str(self.x), ",y:", str(self.y), "},min:{x:", str(self.minx), ",y:", str(self.miny), "},max:{x:", str(self.maxx), ",y:", str(self.maxy), "},centre:{x:", str(self.minx + self.size / 2), ",y:", str(self.miny + self.size / 2), "},quad:" + str(self.quad) + ",vb:" + str(self.vb) + ",startIndex:" + str(self.start_index) + ",borderEdges:", self.get_border_edge_string(), ",variableLodEdges:", self.get_variable_lod_edge_string(), "},"])
+        #return "".join(["JSTerrain.ChunkConstant(", str(self.level), ",", str(self.size), ",", str(self.x), ",", str(self.y), ",", str(self.minx), ",", str(self.miny), ",", str(self.maxx), ",", str(self.maxy), ",", str(self.minx + self.size / 2), ",", str(self.miny + self.size / 2), "," + str(self.quad) + "," + str(self.vb) + "," + str(self.start_index) + ",", self.get_border_edge_string(), ",", self.get_variable_lod_edge_string(), "),"])
         
 chunklist = []
 
@@ -93,7 +119,7 @@ recurse(0, 4, 256, 0, 0, 0, -1, True, True, True, True)
 start_index = 0
 for chunk in chunklist:
     chunk.start_index = start_index
-    start_index = start_index + 16 * 16 * 6
+    start_index = start_index + chunk.get_index_count()
     print "".join(["\t", chunk.to_string()])
     
 print "];"
@@ -103,30 +129,6 @@ print "JSTerrain.LODSize = [16, 32, 64, 128, 256];"
 print ""
 print ""
 print "JSTerrain.indices = new Uint16Array([",
-current_index = 0
 for chunk in chunklist:
-    for x in range(0, 16):
-        for y in range(0, 16):
-            if chunk.level == 4:
-                print "0, 0, 0, 0, 0, 0,",
-            else:
-                quadsize = chunk.size / 16
-                px = x * quadsize + chunk.minx
-                py = y * quadsize + chunk.miny
-                
-                if chunk.vb == 2:
-                    py = py - 128
-                    
-                a = (py * 257) + px
-                b = a + quadsize
-                c = a + 257 * quadsize
-                d = c + quadsize
-
-                print str(a) + ",",
-                print str(b) + ",",
-                print str(c) + ",",
-                print str(c) + ",",
-                print str(b) + ",",
-                print str(d) + ",",
-            current_index = current_index + 6
+    print chunk.get_indices();
 print "]);"
