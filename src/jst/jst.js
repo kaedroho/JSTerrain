@@ -7,13 +7,24 @@ var JSTerrain = {
         JSTerrain.indexBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, JSTerrain.indexBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, JSTerrain.indices, gl.STATIC_DRAW);
+        
+        // Create vertices
+        var tempVertexArray = new Uint16Array(17 * 17 * 2);
+        for (var vertexX = 0; vertexX < 17; vertexX++) {
+            for (var vertexY = 0; vertexY < 17; vertexY++) {
+                var vertexID = vertexY * 17 + vertexX;
+                tempVertexArray[vertexID * 2 + 0] = vertexX;
+                tempVertexArray[vertexID * 2 + 1] = vertexY;
+            }
+        }
+        
+        // Load vertices
+        JSTerrain.vertexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, JSTerrain.vertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, tempVertexArray, gl.STATIC_DRAW);
     },
     
-    Region: function(heightArray, readOnly) {
-        this.heightArray = heightArray;
-        this.readOnly = readOnly;
-        this.dirty = false;
-        
+    Region: function() {
         // Chunk tree data structure
         function ChunkTreeData() {
             this.excluded = false;
@@ -27,36 +38,6 @@ var JSTerrain = {
         for (var chunk = 0; chunk < chunkCount; chunk++) {
             this.chunkTree[chunk] = new ChunkTreeData();
         }
-        
-        /* TODO: CREATE THESE FUNCTIONS
-         * pushToGPU - Creates/updates VBO with current data
-         * deleteFromGPU - Deletes the VBO
-         * isOnGPU - Returns true if the region has a VBO
-         */
-        
-        // Create WebGL vertex buffers
-        var gl = JSTerrain.glContext;
-        this.vertexBuffers = [gl.createBuffer(), gl.createBuffer()];
-        
-        var tempVertexArray = new Float32Array(2 * 257 * 129);
-        for (var vb = 0; vb < 2; vb++) {
-            // Create data
-            for (var vertexX = 0; vertexX < 257; vertexX++) {
-                for (var vertexY = 0; vertexY < 129; vertexY++) {
-                    var vertex = vertexY * 257 + vertexX;
-                    tempVertexArray[vertex * 2 + 0] = (vertexY + 128 * vb) * 257 + vertexX;
-                    tempVertexArray[vertex * 2 + 1] = this.heightArray[vertex + 32896 * vb];
-                }
-            }
-            
-            // Load data into WebGL
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffers[vb]);
-            gl.bufferData(gl.ARRAY_BUFFER, tempVertexArray, gl.STATIC_DRAW);
-        }
-        
-        // Index buffering
-        this.indices = undefined;
-        this.indexBuffer = undefined;
     },
     
     RenderStruct: function() {

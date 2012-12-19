@@ -5,6 +5,11 @@ var shaderProgram;
 var mvMatrix = mat4.create();
 var pMatrix = mat4.create();
 
+var heightTexture;
+var heightImage;
+var colourTexture;
+var colourImage;
+
 var mouse = {x: 0, y: 0, changed: true};
 
 function mouseMoveHandler(event) {
@@ -34,41 +39,42 @@ function draw() {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         
         // Projection matrix
+        //mat4.ortho(0, 1024, 768, 0, 0.1, 1000.0, pMatrix);
         mat4.perspective(90, 1024 / 768, 0.1, 1000.0, pMatrix);
         gl.uniformMatrix4fv(shaderProgram.pUniform, false, pMatrix);
         
         // Model view matrix
         mat4.identity(mvMatrix);
+        mat4.translate(mvMatrix, [0, 0, -100]);
+        mat4.scale(mvMatrix, [2.0, 2.0, 1.0])
         mat4.scale(mvMatrix, [1.0, -1.0, 1]);
         mat4.rotateX(mvMatrix, 0.8, mvMatrix);
         mat4.translate(mvMatrix, [-100, -200, -100]);
-        mat4.scale(mvMatrix, [1.0, 1.0, 0.001]);
+        mat4.scale(mvMatrix, [1.0, 1.0, 50]);
         gl.uniformMatrix4fv(shaderProgram.mvUniform, false, mvMatrix);
         
-        // Bind indices
+        // Bind buffers
+        gl.bindBuffer(gl.ARRAY_BUFFER, JSTerrain.vertexBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.UNSIGNED_SHORT, false, 0, 0);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, JSTerrain.indexBuffer);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, heightTexture);
+        gl.uniform1i(shaderProgram.heightsUniform, 0);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, colourTexture);
+        gl.uniform1i(shaderProgram.coloursUniform, 1);
         
         // Draw render stack
         var currentVB = -1;
         for (var renderStruct = renderVariables.renderStackSize - 1; renderStruct >= 0; renderStruct--) {
             var chunkID = renderVariables.renderStack[renderStruct].chunkID;
-            var startIndex = JSTerrain.chunkConstants[chunkID].startIndex;
-            var vb = JSTerrain.chunkConstants[chunkID].vb;
             
-            // Load vertex buffer
-            if (vb != currentVB) {
-                if (vb == 0) {
-                    continue;
-                }
-                
-                // Load vertex buffer
-                gl.bindBuffer(gl.ARRAY_BUFFER, region.vertexBuffers[vb - 1]);
-                gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, 0, 0);
-                currentVB = vb;
-            }
+            // Set uniforms for this chunk
+            gl.uniform1f(shaderProgram.sizeUniform, JSTerrain.chunkConstants[chunkID].size / 16);
+            gl.uniform2fv(shaderProgram.chunkPosUniform, [JSTerrain.chunkConstants[chunkID].min.x, JSTerrain.chunkConstants[chunkID].min.y]);
             
             // Draw chunk
-            gl.drawElements(gl.LINES, 1536, gl.UNSIGNED_SHORT, startIndex * 2);
+            gl.drawElements(gl.TRIANGLES, 1536, gl.UNSIGNED_SHORT, 0);
         }
     }
 }
@@ -83,9 +89,17 @@ function start() {
     // Init JSTerrain
     JSTerrain.init(gl);
     
-    // Create heights array
-    var heights = new Uint16Array(257 * 257)
+    heightTexture = gl.createTexture();
+    heightImage = new Image();
+    heightImage.onload = function() { handleTextureLoaded(heightImage, heightTexture); }
+    heightImage.src = "data/map.png";
     
+    colourTexture = gl.createTexture();
+    colourImage = new Image();
+    colourImage.onload = function() { handleTextureLoaded(colourImage, colourTexture); }
+    colourImage.src = "data/texture.png";
+    
+    /*
     // Fill heights array with random data
     for (var x = 0; x < 257; x++) {
         for (var y = 0; y < 257; y++) {
@@ -119,13 +133,27 @@ function start() {
             }
         }
     }
+    */
     
     // Create region
-    region = new JSTerrain.Region(heights, true);
+    region = new JSTerrain.Region();
     
     // Start main loop
     setInterval(draw, 30);
 }
+
+
+// Borrowed from: https://developer.mozilla.org/en-US/docs/WebGL/Using_textures_in_WebGL :)
+function handleTextureLoaded(image, texture) {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+}
+
+
 
 // Borrowed from: http://learningwebgl.com/blog/?p=28 :)
 function initGL(canvas) {
@@ -147,7 +175,7 @@ function initGL(canvas) {
 
 function initShaders() {
     // Vertex shader
-    vert_src = "attribute vec2 pos;\n\nuniform mat4 matp;\nuniform mat4 matmv;\n\nvoid main(void) {\ngl_Position = matp * matmv * vec4(mod(pos.x, 257.0), floor(pos.x / 257.0), pos.y, 1.0);\n}";
+    vert_src = "attribute vec2 pos;\n\nuniform mat4 matp;\nuniform sampler2D heights;\n\nuniform float size; uniform vec2 chunkPos;\nuniform mat4 matmv;\nvarying vec2 pointPos;\nvoid main(void) {\npointPos = chunkPos + pos * size;\ngl_Position = matp * matmv * vec4(pointPos.x, pointPos.y, texture2D(heights, pointPos / 257.0).r, 1.0);\n}";
     
     
     var vert = gl.createShader(gl.VERTEX_SHADER);
@@ -159,7 +187,7 @@ function initShaders() {
     }
     
     // Fragment shader
-    frag_src = "precision mediump float;\n\nvoid main(void) {\ngl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n}";
+    frag_src = "precision mediump float;\nuniform sampler2D colours;\nvarying vec2 pointPos;\n\nvoid main(void) {\ngl_FragColor = texture2D(colours, pointPos / 257.0);\n}";
     var frag = gl.createShader(gl.FRAGMENT_SHADER);
     gl.shaderSource(frag, frag_src);
     gl.compileShader(frag);
@@ -180,6 +208,12 @@ function initShaders() {
     
     prog.mvUniform = gl.getUniformLocation(prog, "matmv");
     prog.pUniform = gl.getUniformLocation(prog, "matp");
+    
+    prog.heightsUniform = gl.getUniformLocation(prog, "heights");
+    prog.coloursUniform = gl.getUniformLocation(prog, "colours");
+    
+    prog.sizeUniform = gl.getUniformLocation(prog, "size");
+    prog.chunkPosUniform = gl.getUniformLocation(prog, "chunkPos");
     
     return prog;
 }

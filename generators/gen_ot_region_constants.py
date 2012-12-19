@@ -23,7 +23,6 @@ class Chunk():
             self.vb = 1
         if quad == 3 or quad == 4:
             self.vb = 2
-        self.start_index = 0
         self.border_edge_n = border_edge_n
         self.border_edge_e = border_edge_e
         self.border_edge_s = border_edge_s
@@ -129,6 +128,13 @@ print "JSTerrain.LODSize = [16, 32, 64, 128, 256];"
 print ""
 print ""
 print "JSTerrain.indices = new Uint16Array([",
-for chunk in chunklist:
-    print chunk.get_indices();
+for x in range(0, 16):
+    for y in range(0, 16):
+        a = (y * 17) + x
+        b = a + 1
+        c = a + 17
+        d = c + 1
+        print str(a) + "," + str(b) + "," + str(c) + "," + str(c) + ",", str(b) + "," + str(d) + ",",
 print "]);"
+
+
